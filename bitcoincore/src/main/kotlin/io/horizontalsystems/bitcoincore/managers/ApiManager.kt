@@ -1,10 +1,12 @@
 package io.horizontalsystems.bitcoincore.managers
 
+import android.util.Log
 import com.eclipsesource.json.Json
 import com.eclipsesource.json.JsonValue
 import io.horizontalsystems.bitcoincore.utils.NetworkUtils
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.logging.HttpLoggingInterceptor
 import java.io.BufferedOutputStream
 import java.io.BufferedWriter
 import java.io.IOException
@@ -14,7 +16,7 @@ import java.net.URL
 import java.util.concurrent.TimeUnit
 import java.util.logging.Logger
 
-class ApiManager(private val host: String) {
+class ApiManager(private val host: String, private val log: Boolean = false) {
     private val logger = Logger.getLogger("ApiManager")
 
     @Throws
@@ -25,15 +27,15 @@ class ApiManager(private val host: String) {
 
         return try {
             URL(url)
-                    .openConnection()
-                    .apply {
-                        connectTimeout = 5000
-                        readTimeout = 60000
-                        setRequestProperty("Accept", "application/json")
-                    }.getInputStream()
-                    .use {
-                        Json.parse(it.bufferedReader())
-                    }
+                .openConnection()
+                .apply {
+                    connectTimeout = 5000
+                    readTimeout = 60000
+                    setRequestProperty("Accept", "application/json")
+                }.getInputStream()
+                .use {
+                    Json.parse(it.bufferedReader())
+                }
         } catch (exception: IOException) {
             throw Exception("${exception.javaClass.simpleName}: $host")
         }
@@ -70,27 +72,36 @@ class ApiManager(private val host: String) {
 
         try {
             val httpClient: OkHttpClient = if (!safeCall)
-                NetworkUtils.getUnsafeOkHttpClient()
+                NetworkUtils.getUnsafeOkHttpClient(log)
             else {
                 OkHttpClient.Builder()
-                        .apply {
-                            connectTimeout(5000, TimeUnit.MILLISECONDS)
-                            readTimeout(60000, TimeUnit.MILLISECONDS)
-                        }.build()
+                    .apply {
+                        if (log) {
+                            addInterceptor(HttpLoggingInterceptor(object :
+                                HttpLoggingInterceptor.Logger {
+                                override fun log(message: String) {
+                                    Log.e("[OKHttp]", message)
+                                }
+                            }).setLevel(HttpLoggingInterceptor.Level.BODY))
+                        }
+
+                        connectTimeout(5000, TimeUnit.MILLISECONDS)
+                        readTimeout(60000, TimeUnit.MILLISECONDS)
+                    }.build()
             }
 
             httpClient.newCall(Request.Builder().url(url).build())
-                    .execute()
-                    .use { response ->
+                .execute()
+                .use { response ->
 
-                        if (response.isSuccessful) {
-                            response.body?.let {
-                                return Json.parse(it.string())
-                            }
+                    if (response.isSuccessful) {
+                        response.body?.let {
+                            return Json.parse(it.string())
                         }
-
-                        throw IOException("Unexpected Error:$response")
                     }
+
+                    throw IOException("Unexpected Error:$response")
+                }
         } catch (e: Exception) {
             throw Exception("${e.javaClass.simpleName}: $host, ${e.localizedMessage}")
         }

@@ -40,7 +40,7 @@ class UnspentOutputProvider(private val storage: IStorage, private val confirmat
         }
     }
 
-    private fun getUnspendableUtxo(): List<UnspentOutput> {
+     fun getUnspendableUtxo(): List<UnspentOutput> {
         return getConfirmedUtxo().filter {
             !pluginManager.isSpendable(it)
         }

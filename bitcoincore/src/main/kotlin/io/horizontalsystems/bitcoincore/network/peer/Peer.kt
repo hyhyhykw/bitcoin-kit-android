@@ -7,7 +7,7 @@ import io.horizontalsystems.bitcoincore.network.peer.task.PeerTask
 import java.net.InetAddress
 import java.util.concurrent.ExecutorService
 
-class Peer(
+class Peer constructor(
         val host: String,
         private val network: Network,
         private val listener: Listener,

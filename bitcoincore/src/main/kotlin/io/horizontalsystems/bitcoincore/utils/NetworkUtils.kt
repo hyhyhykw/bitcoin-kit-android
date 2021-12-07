@@ -1,13 +1,16 @@
 package io.horizontalsystems.bitcoincore.utils
 
 import android.annotation.SuppressLint
+import android.util.Log
 import io.horizontalsystems.bitcoincore.extensions.toHexString
 import okhttp3.OkHttpClient
+import okhttp3.logging.HttpLoggingInterceptor
 import java.net.*
 import java.security.SecureRandom
 import java.security.cert.CertificateException
 import java.security.cert.X509Certificate
 import java.util.concurrent.TimeUnit
+import java.util.logging.Logger
 import javax.net.ssl.*
 
 object NetworkUtils {
@@ -52,7 +55,7 @@ object NetworkUtils {
     }
 
     @SuppressLint("TrustAllX509TrustManager", "BadHostnameVerifier")
-    fun getUnsafeOkHttpClient(): OkHttpClient {
+    fun getUnsafeOkHttpClient(log:Boolean=false): OkHttpClient {
         return try {
             val trustAllCerts = arrayOf<TrustManager>(
                     object : X509TrustManager {
@@ -79,6 +82,13 @@ object NetworkUtils {
             builder.hostnameVerifier(HostnameVerifier { _, _ -> true })
             builder.connectTimeout(5000, TimeUnit.MILLISECONDS)
             builder.readTimeout(60000, TimeUnit.MILLISECONDS)
+            if (log){
+                builder.addInterceptor(HttpLoggingInterceptor(object :HttpLoggingInterceptor.Logger{
+                    override fun log(message: String) {
+                        Log.e("[OKHttp]",message)
+                    }
+                }).setLevel(HttpLoggingInterceptor.Level.BODY))
+            }
             builder.build()
 
         } catch (e: Exception) {

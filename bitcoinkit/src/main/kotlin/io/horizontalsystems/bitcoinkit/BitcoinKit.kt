@@ -10,6 +10,7 @@ import io.horizontalsystems.bitcoincore.blocks.BlockMedianTimeHelper
 import io.horizontalsystems.bitcoincore.blocks.validators.*
 import io.horizontalsystems.bitcoincore.core.Bip
 import io.horizontalsystems.bitcoincore.core.IInitialSyncApi
+import io.horizontalsystems.bitcoincore.expand.SyncApiProvider
 import io.horizontalsystems.bitcoincore.managers.*
 import io.horizontalsystems.bitcoincore.network.Network
 import io.horizontalsystems.bitcoincore.storage.CoreDatabase
@@ -17,6 +18,8 @@ import io.horizontalsystems.bitcoincore.storage.Storage
 import io.horizontalsystems.bitcoincore.utils.Base58AddressConverter
 import io.horizontalsystems.bitcoincore.utils.PaymentAddressParser
 import io.horizontalsystems.bitcoincore.utils.SegwitAddressConverter
+import io.horizontalsystems.bitcoinkit.BitcoinKit.Listener
+import io.horizontalsystems.bitcoinkit.BitcoinKit.NetworkType
 import io.horizontalsystems.hdwalletkit.Mnemonic
 import io.horizontalsystems.hodler.HodlerPlugin
 
@@ -50,6 +53,7 @@ class BitcoinKit : AbstractKit {
             field = value
             bitcoinCore.listener = value
         }
+
     /**
      * @constructor Creates and initializes the BitcoinKit
      * @param context The Android context.
@@ -62,19 +66,30 @@ class BitcoinKit : AbstractKit {
      * @param confirmationsThreshold How many confirmations required to be considered confirmed. Default is 6 confirmations.
      * @param bip which BIP algorithm to use for wallet generation. Default is BIP44.
      */
+    @JvmOverloads
     constructor(
-            context: Context,
-            words: List<String>,
-            passphrase: String,
-            walletId: String,
-            networkType: NetworkType = NetworkType.MainNet,
-            peerSize: Int = 10,
-            syncMode: SyncMode = SyncMode.Api(),
-            confirmationsThreshold: Int = 6,
-            bip: Bip = Bip.BIP44
+        context: Context,
+        words: List<String>,
+        passphrase: String,
+        walletId: String,
+        networkType: NetworkType = NetworkType.MainNet,
+        peerSize: Int = 10,
+        syncMode: SyncMode = SyncMode.Api(),
+        confirmationsThreshold: Int = 6,
+        bip: Bip = Bip.BIP44,
+        provider: SyncApiProvider<*>? = null
 
-    ) : this(context, Mnemonic().toSeed(words, passphrase), walletId, networkType, peerSize, syncMode, confirmationsThreshold, bip)
-
+    ) : this(
+        context,
+        Mnemonic().toSeed(words, passphrase),
+        walletId,
+        networkType,
+        peerSize,
+        syncMode,
+        confirmationsThreshold,
+        bip,
+        provider
+    )
 
 
     /**
@@ -89,31 +104,37 @@ class BitcoinKit : AbstractKit {
      * @param bip which BIP algorithm to use for wallet generation. The default is BIP44.
      */
 
+    @JvmOverloads
     constructor(
-            context: Context,
-            seed: ByteArray,
-            walletId: String,
-            networkType: NetworkType = NetworkType.MainNet,
-            peerSize: Int = 10,
-            syncMode: SyncMode = SyncMode.Api(),
-            confirmationsThreshold: Int = 6,
-            bip: Bip = Bip.BIP44
+        context: Context,
+        seed: ByteArray,
+        walletId: String,
+        networkType: NetworkType = NetworkType.MainNet,
+        peerSize: Int = 10,
+        syncMode: SyncMode = SyncMode.Api(),
+        confirmationsThreshold: Int = 6,
+        bip: Bip = Bip.BIP44,
+        provider: SyncApiProvider<*>? = null
     ) {
-        val database = CoreDatabase.getInstance(context, getDatabaseName(networkType, walletId, syncMode, bip))
+        val database =
+            CoreDatabase.getInstance(context, getDatabaseName(networkType, walletId, syncMode, bip))
         val storage = Storage(database)
         val initialSyncApi: IInitialSyncApi
 
+
         network = when (networkType) {
             NetworkType.MainNet -> {
-                initialSyncApi = InsightApi("https://explorer.api.bitcoin.com/btc/v1")
+                initialSyncApi =
+                    provider?.provider ?: InsightApi("https://explorer.api.bitcoin.com/btc/v1")
                 MainNet()
             }
             NetworkType.TestNet -> {
-                initialSyncApi = BCoinApi("https://btc-testnet.horizontalsystems.xyz/api")
+                initialSyncApi =
+                    provider?.provider ?: BCoinApi("https://btc-testnet.horizontalsystems.xyz/api")
                 TestNet()
             }
             NetworkType.RegTest -> {
-                initialSyncApi = InsightApi("")
+                initialSyncApi = provider?.provider ?: InsightApi("")
                 RegTest()
             }
         }
@@ -127,11 +148,32 @@ class BitcoinKit : AbstractKit {
         val blockValidatorChain = BlockValidatorChain()
 
         if (networkType == NetworkType.MainNet) {
-            blockValidatorChain.add(LegacyDifficultyAdjustmentValidator(blockHelper, heightInterval, targetTimespan, maxTargetBits))
+            blockValidatorChain.add(
+                LegacyDifficultyAdjustmentValidator(
+                    blockHelper,
+                    heightInterval,
+                    targetTimespan,
+                    maxTargetBits
+                )
+            )
             blockValidatorChain.add(BitsValidator())
         } else if (networkType == NetworkType.TestNet) {
-            blockValidatorChain.add(LegacyDifficultyAdjustmentValidator(blockHelper, heightInterval, targetTimespan, maxTargetBits))
-            blockValidatorChain.add(LegacyTestNetDifficultyValidator(storage, heightInterval, targetSpacing, maxTargetBits))
+            blockValidatorChain.add(
+                LegacyDifficultyAdjustmentValidator(
+                    blockHelper,
+                    heightInterval,
+                    targetTimespan,
+                    maxTargetBits
+                )
+            )
+            blockValidatorChain.add(
+                LegacyTestNetDifficultyValidator(
+                    storage,
+                    heightInterval,
+                    targetSpacing,
+                    maxTargetBits
+                )
+            )
             blockValidatorChain.add(BitsValidator())
         }
 
@@ -140,25 +182,32 @@ class BitcoinKit : AbstractKit {
         val coreBuilder = BitcoinCoreBuilder()
 
         bitcoinCore = coreBuilder
-                .setContext(context)
-                .setSeed(seed)
-                .setNetwork(network)
-                .setBip(bip)
-                .setPaymentAddressParser(paymentAddressParser)
-                .setPeerSize(peerSize)
-                .setSyncMode(syncMode)
-                .setConfirmationThreshold(confirmationsThreshold)
-                .setStorage(storage)
-                .setInitialSyncApi(initialSyncApi)
-                .setBlockValidator(blockValidatorSet)
-                .setHandleAddrMessage(false)
-                .addPlugin(HodlerPlugin(coreBuilder.addressConverter, storage, BlockMedianTimeHelper(storage)))
-                .build()
+            .setContext(context)
+            .setSeed(seed)
+            .setNetwork(network)
+            .setBip(bip)
+            .setPaymentAddressParser(paymentAddressParser)
+            .setPeerSize(peerSize)
+            .setSyncMode(syncMode)
+            .setConfirmationThreshold(confirmationsThreshold)
+            .setStorage(storage)
+            .setInitialSyncApi(initialSyncApi)
+            .setBlockValidator(blockValidatorSet)
+            .setHandleAddrMessage(false)
+            .addPlugin(
+                HodlerPlugin(
+                    coreBuilder.addressConverter,
+                    storage,
+                    BlockMedianTimeHelper(storage)
+                )
+            )
+            .build()
 
         //  extending bitcoinCore
 
         val bech32AddressConverter = SegwitAddressConverter(network.addressSegwitHrp)
-        val base58AddressConverter = Base58AddressConverter(network.addressVersion, network.addressScriptVersion)
+        val base58AddressConverter =
+            Base58AddressConverter(network.addressVersion, network.addressScriptVersion)
 
         bitcoinCore.prependAddressConverter(bech32AddressConverter)
 
@@ -180,7 +229,8 @@ class BitcoinKit : AbstractKit {
     companion object {
         const val maxTargetBits: Long = 0x1d00ffff                // Maximum difficulty
         const val targetSpacing = 10 * 60                         // 10 minutes per block.
-        const val targetTimespan: Long = 14 * 24 * 60 * 60        // 2 weeks per difficulty cycle, on average.
+        const val targetTimespan: Long =
+            14 * 24 * 60 * 60        // 2 weeks per difficulty cycle, on average.
         const val heightInterval = targetTimespan / targetSpacing // 2016 blocks
 
         /**
@@ -192,7 +242,13 @@ class BitcoinKit : AbstractKit {
          * @return database name
          */
 
-        private fun getDatabaseName(networkType: NetworkType, walletId: String, syncMode: SyncMode, bip: Bip): String = "Bitcoin-${networkType.name}-$walletId-${syncMode.javaClass.simpleName}-${bip.name}"
+        private fun getDatabaseName(
+            networkType: NetworkType,
+            walletId: String,
+            syncMode: SyncMode,
+            bip: Bip
+        ): String =
+            "Bitcoin-${networkType.name}-$walletId-${syncMode.javaClass.simpleName}-${bip.name}"
 
         /**
          * Clears the database
@@ -204,7 +260,16 @@ class BitcoinKit : AbstractKit {
             for (syncMode in listOf(SyncMode.Api(), SyncMode.Full(), SyncMode.NewWallet())) {
                 for (bip in Bip.values())
                     try {
-                        SQLiteDatabase.deleteDatabase(context.getDatabasePath(getDatabaseName(networkType, walletId, syncMode, bip)))
+                        SQLiteDatabase.deleteDatabase(
+                            context.getDatabasePath(
+                                getDatabaseName(
+                                    networkType,
+                                    walletId,
+                                    syncMode,
+                                    bip
+                                )
+                            )
+                        )
                     } catch (ex: Exception) {
                         continue
                     }

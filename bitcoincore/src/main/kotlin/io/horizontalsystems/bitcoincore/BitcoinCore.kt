@@ -376,6 +376,8 @@ class BitcoinCore(
         return this
     }
 
+    fun getUtxo() =dataProvider.getUtxo()
+
     fun addRestoreKeyConverter(keyConverter: IRestoreKeyConverter) {
         restoreKeyConverterChain.add(keyConverter)
     }

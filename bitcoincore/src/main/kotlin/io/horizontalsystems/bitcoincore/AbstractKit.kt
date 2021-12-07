@@ -32,19 +32,27 @@ abstract class AbstractKit {
         bitcoinCore.stop()
     }
 
+    fun getUtxo(): List<UnspentOutput> {
+        return bitcoinCore.getUtxo()
+    }
+
     fun refresh() {
         bitcoinCore.refresh()
     }
 
-    fun onEnterForeground(){
+    fun onEnterForeground() {
         bitcoinCore.onEnterForeground()
     }
 
-    fun onEnterBackground(){
+    fun onEnterBackground() {
         bitcoinCore.onEnterBackground()
     }
 
-    fun transactions(fromUid: String? = null, type: TransactionFilterType? = null, limit: Int? = null): Single<List<TransactionInfo>> {
+    fun transactions(
+        fromUid: String? = null,
+        type: TransactionFilterType? = null,
+        limit: Int? = null
+    ): Single<List<TransactionInfo>> {
         return bitcoinCore.transactions(fromUid, type, limit)
     }
 
@@ -52,19 +60,44 @@ abstract class AbstractKit {
         return bitcoinCore.getTransaction(hash)
     }
 
-    fun fee(value: Long, address: String? = null, senderPay: Boolean = true, feeRate: Int, pluginData: Map<Byte, IPluginData> = mapOf()): Long {
+    fun fee(
+        value: Long,
+        address: String? = null,
+        senderPay: Boolean = true,
+        feeRate: Int,
+        pluginData: Map<Byte, IPluginData> = mapOf()
+    ): Long {
         return bitcoinCore.fee(value, address, senderPay, feeRate, pluginData)
     }
 
-    fun send(address: String, value: Long, senderPay: Boolean = true, feeRate: Int, sortType: TransactionDataSortType, pluginData: Map<Byte, IPluginData> = mapOf()): FullTransaction {
+    fun send(
+        address: String,
+        value: Long,
+        senderPay: Boolean = true,
+        feeRate: Int,
+        sortType: TransactionDataSortType,
+        pluginData: Map<Byte, IPluginData> = mapOf()
+    ): FullTransaction {
         return bitcoinCore.send(address, value, senderPay, feeRate, sortType, pluginData)
     }
 
-    fun send(hash: ByteArray, scriptType: ScriptType, value: Long, senderPay: Boolean = true, feeRate: Int, sortType: TransactionDataSortType): FullTransaction {
+    fun send(
+        hash: ByteArray,
+        scriptType: ScriptType,
+        value: Long,
+        senderPay: Boolean = true,
+        feeRate: Int,
+        sortType: TransactionDataSortType
+    ): FullTransaction {
         return bitcoinCore.send(hash, scriptType, value, senderPay, feeRate, sortType)
     }
 
-    fun redeem(unspentOutput: UnspentOutput, address: String, feeRate: Int, sortType: TransactionDataSortType): FullTransaction {
+    fun redeem(
+        unspentOutput: UnspentOutput,
+        address: String,
+        feeRate: Int,
+        sortType: TransactionDataSortType
+    ): FullTransaction {
         return bitcoinCore.redeem(unspentOutput, address, feeRate, sortType)
     }
 
@@ -104,7 +137,11 @@ abstract class AbstractKit {
         bitcoinCore.watchTransaction(filter, listener)
     }
 
-    fun maximumSpendableValue(address: String?, feeRate: Int, pluginData: Map<Byte, IPluginData>): Long {
+    fun maximumSpendableValue(
+        address: String?,
+        feeRate: Int,
+        pluginData: Map<Byte, IPluginData>
+    ): Long {
         return bitcoinCore.maximumSpendableValue(address, feeRate, pluginData)
     }
 

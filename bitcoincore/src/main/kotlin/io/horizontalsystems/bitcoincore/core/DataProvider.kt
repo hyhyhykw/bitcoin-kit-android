@@ -6,6 +6,7 @@ import io.horizontalsystems.bitcoincore.extensions.toReversedHex
 import io.horizontalsystems.bitcoincore.managers.UnspentOutputProvider
 import io.horizontalsystems.bitcoincore.models.*
 import io.horizontalsystems.bitcoincore.storage.TransactionWithBlock
+import io.horizontalsystems.bitcoincore.storage.UnspentOutput
 import io.reactivex.Single
 import io.reactivex.disposables.Disposable
 import io.reactivex.subjects.PublishSubject
@@ -37,6 +38,7 @@ class DataProvider(
             }
         }
 
+
     var lastBlockInfo: BlockInfo?
         private set
 
@@ -49,6 +51,10 @@ class DataProvider(
                 .subscribe {
                     balance = unspentOutputProvider.getBalance()
                 }
+    }
+
+    fun getUtxo(): List<UnspentOutput> {
+        return unspentOutputProvider.getUnspendableUtxo()
     }
 
     override fun onBlockInsert(block: Block) {
