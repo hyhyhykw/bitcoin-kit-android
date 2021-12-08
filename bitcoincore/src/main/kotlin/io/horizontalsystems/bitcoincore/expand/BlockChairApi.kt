@@ -18,7 +18,7 @@ class BlockChairApi @JvmOverloads constructor(
 ) : IInitialSyncApi {
     private val tokenQuery = if (TextUtils.isEmpty(token)) "" else "token=$token"
 
-    private val apiManager = ApiManager("https://api.blockcypher.com/",log)
+    private val apiManager = ApiManager("https://api.blockcypher.com/", log)
 
     private val limit = 50
 
@@ -40,7 +40,11 @@ class BlockChairApi @JvmOverloads constructor(
         extraPath: String
     ) {
         val uri = "$path$address/full?$tokenQuery&limit=$limit$extraPath"
-        val json = apiManager.doOkHttpGet(true, uri).asObject()
+        val doOkHttpGet = apiManager.doOkHttpGet(true, uri)
+        if (doOkHttpGet.isNull) {
+            return
+        }
+        val json = doOkHttpGet.asObject()
 
         val txs = json["txs"].asArray()
 

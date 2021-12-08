@@ -99,6 +99,9 @@ class ApiManager(private val host: String, private val log: Boolean = false) {
                             return Json.parse(it.string())
                         }
                     }
+                    if (response.code in 400..499){
+                        return Json.NULL
+                    }
 
                     throw IOException("Unexpected Error:$response")
                 }
